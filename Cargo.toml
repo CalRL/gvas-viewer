@@ -1,5 +1,5 @@
 [package]
-name = "gvas-viewer-rs"
+name = "gvas-viewer"
 version = "0.1.0"
 edition = "2024"
 
@@ -12,3 +12,6 @@ serde_json = "1.0.145"
 rfd = "0.15.4"
 gvas2json = "0.1.0"
 chrono = { version = "0.4.42"}
+
+[package.metadata.windows]
+subsystem = "windows"
