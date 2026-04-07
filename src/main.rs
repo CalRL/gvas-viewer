@@ -1,26 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod save;
 mod logger;
+mod save;
 
-use std::fs;
-use std::fs::File;
-use std::io::{Error, ErrorKind, Seek, SeekFrom, Write};
-use std::path::PathBuf;
-use eframe::{App, Frame};
-use egui::{Context, MenuBar, OpenUrl, Ui, WidgetText};
-use egui::Key::P;
-use egui::panel::Side;
+use eframe::{Frame};
+use egui::{Context, MenuBar, OpenUrl, RichText, Ui};
 use gvas::game_version::GameVersion;
 use gvas::GvasFile;
 use rfd::{FileDialog, MessageDialog};
-use serde::Serialize;
-use serde_json::json;
-use crate::save::convert;
+use std::fs;
+use std::fs::File;
+use std::io::{Error, Seek};
+use std::path::PathBuf;
+use crate::save::json::format_json;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions::default();
-    // create folders
     fs::create_dir_all("logs").unwrap();
 
     eframe::run_native(
@@ -40,8 +35,6 @@ pub struct Files {
 
 #[derive(Default)]
 pub struct AppState {
-    label: String,
-    value: f32,
     files: Files,
     selected: Option<String>,
     edit_buffer: Option<String>
@@ -97,7 +90,7 @@ impl AppState {
     /// if path is invalid, show err and do nothing
     fn set_gvas_file(&mut self, path: PathBuf) {
         let file_res: Result<File, Error> = File::open(path);
-        let res: () = match file_res {
+        match file_res {
             Ok(file) => {
                 if AppState::is_gvas_file(&file) {
                     self.files.gvas_file = Some(file)
@@ -132,28 +125,13 @@ impl AppState {
         if let Some(file) = self.files.gvas_file.as_mut() {
             file.seek(std::io::SeekFrom::Start(0)).ok();
             if let Ok(save) = GvasFile::read(file, GameVersion::Default) {
-                self.files.json = Some(convert::json::format_json(&save).unwrap());
+                self.files.json = Some(format_json(&save).unwrap());
                 self.files.pretty_json = serde_json::to_string_pretty(&self.files.json).ok();
                 self.files.gvas = Some(save);
                 logger::info("converted to json...");
             }
         }
     }
-}
-
-impl Files {
-    pub fn from(&mut self, state: AppState) {
-        let files: Files = state.files;
-
-        self.gvas = files.gvas;
-        self.json = files.json;
-        self.gvas_file = files.gvas_file
-    }
-
-    fn is_gvas_file_loaded(&self) -> bool {
-        return self.gvas_file.is_some()
-    }
-
 }
 
 impl eframe::App for AppState {
@@ -168,14 +146,13 @@ impl eframe::App for AppState {
                         let properties = &file.properties;
                         egui::ScrollArea::vertical().id_salt("left").show(ui, |ui| {
                             for (key, value) in properties {
-                                let header = egui::CollapsingHeader::new(key.as_str());
-                                header.show(ui, |ui| {
-                                    ui.code(serde_json::to_string_pretty(value).unwrap());
-                                });
-                                if ui.button("Select").clicked() {
+                                let text = RichText::new(key.as_str()).heading();
+                                if ui.button(text).clicked() {
                                     self.selected = Some(key.to_owned());
                                     self.edit_buffer = Some(serde_json::to_string_pretty(value).unwrap());
                                 }
+
+                                ui.add_space(10.0);
                             }
                         });
                     } else {
@@ -189,11 +166,10 @@ impl eframe::App for AppState {
                 ui.label(format!("Editing: {:?}", key));
 
                 if ui.button("Apply changes").clicked() {
-                    // Try to parse edited text back into the property type
                     match serde_json::from_str(buf) {
                         Ok(new_value) => {
                             if let Some(gvas) = &mut self.files.gvas {
-                                gvas.properties.insert(key.clone(), new_value); // replace property
+                                gvas.properties.insert(key.clone(), new_value);
                             }
                             logger::info("Applied property changes");
                         }
