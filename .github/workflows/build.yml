@@ -1,0 +1,59 @@
+name: Build & Draft Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ windows-latest, ubuntu-latest, macos-latest ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Copy binary (per OS)
+        shell: bash
+        run: |
+          mkdir dist
+
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp target/release/gvas-viewer.exe dist/gvas-viewer-windows.exe
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            cp target/release/gvas-viewer dist/gvas-viewer-macos
+          else
+            cp target/release/gvas-viewer dist/gvas-viewer-linux
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.os }}
+          path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: draft-${{ github.run_id }}
+          name: Draft Build ${{ github.run_id }}
+          files: |
+            **/*
