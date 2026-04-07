@@ -25,7 +25,7 @@ jobs:
       - name: Rename binary
         run: |
           mkdir dist
-          cp target/release/your_app* dist/your_app-${{ matrix.os }}
+          cp target/release/gvas-viewer* dist/gvas-viewer-${{ matrix.os }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
