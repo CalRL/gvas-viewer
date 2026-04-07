@@ -39,12 +39,15 @@ pub struct AppState {
     selected: Option<String>,
     edit_buffer: Option<String>
 }
+fn menu_text(text: &str) -> RichText {
+    RichText::new(text).heading()
+}
 
 impl AppState {
     fn show_menu(&mut self, ui: &mut Ui) {
         MenuBar::new().ui(ui, |ui| {
-            ui.menu_button("File", |ui| {
-                if ui.button("Open").clicked() {
+            ui.menu_button(menu_text("File"), |ui| {
+                if ui.button(menu_text("Open")).clicked() {
                     let dialog: FileDialog = FileDialog::new();
                     let path: Option<PathBuf> = dialog.pick_file();
                     if path.is_some() {
@@ -53,7 +56,7 @@ impl AppState {
                     }
 
                 }
-                if ui.button("Export").clicked() {
+                if ui.button(menu_text("Export")).clicked() {
                     let dialog: FileDialog = FileDialog::new();
                     let path: Option<PathBuf> = dialog.save_file();
                     if path.is_some() {
@@ -68,15 +71,15 @@ impl AppState {
 
                 ui.separator();
 
-                if ui.button("Quit").clicked() {
+                if ui.button(menu_text("Quit")).clicked() {
                     ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
 
 
             });
 
-            ui.menu_button("Help", |ui| {
-                if ui.button("Join the Discord").clicked() {
+            ui.menu_button(menu_text("Help"), |ui| {
+                if ui.button(menu_text("Join the Discord")).clicked() {
                     let url: OpenUrl = OpenUrl {
                         url: "https://discord.cal.ceo".to_owned(),
                         new_tab: true
@@ -145,15 +148,17 @@ impl eframe::App for AppState {
                     if let Some(file) = &self.files.gvas {
                         let properties = &file.properties;
                         egui::ScrollArea::vertical().id_salt("left").show(ui, |ui| {
-                            for (key, value) in properties {
-                                let text = RichText::new(key.as_str()).heading();
-                                if ui.button(text).clicked() {
-                                    self.selected = Some(key.to_owned());
-                                    self.edit_buffer = Some(serde_json::to_string_pretty(value).unwrap());
-                                }
+                            egui::Frame::new().inner_margin(egui::Margin::same(5)).show(ui, |ui| {
+                                for (key, value) in properties {
+                                    let text = RichText::new(key.as_str()).heading();
+                                    if ui.button(text).clicked() {
+                                        self.selected = Some(key.to_owned());
+                                        self.edit_buffer = Some(serde_json::to_string_pretty(value).unwrap());
+                                    }
 
-                                ui.add_space(10.0);
-                            }
+                                    ui.add_space(5.0);
+                                }
+                            });
                         });
                     } else {
                         logger::info("Failed to create labels");
@@ -189,7 +194,7 @@ impl eframe::App for AppState {
 
 
             } else {
-                ui.label("Select a property from the left panel");
+                ui.label(RichText::new("Select a property from the left panel").heading());
             }
         });
     }
