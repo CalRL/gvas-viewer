@@ -4,7 +4,7 @@ mod logger;
 mod save;
 
 use eframe::{Frame};
-use egui::{Context, MenuBar, OpenUrl, RichText, Ui};
+use egui::{Context, InnerResponse, MenuBar, OpenUrl, Response, RichText, Ui};
 use gvas::game_version::GameVersion;
 use gvas::GvasFile;
 use rfd::{FileDialog, MessageDialog};
@@ -12,6 +12,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{Error, Seek};
 use std::path::PathBuf;
+use egui::accesskit::Role::AlertDialog;
 use crate::save::json::format_json;
 
 fn main() -> Result<(), eframe::Error> {
@@ -64,6 +65,31 @@ impl AppState {
                             let file = File::create(path.unwrap());
                             if let Ok(mut f) = file {
                                 gvas_file.write(&mut f).expect("failed to write");
+                            }
+                        }
+                    }
+                }
+
+                if ui.button(menu_text("Keys")).clicked() {
+                    let op = arboard::Clipboard::new();
+                    if let Ok(mut clipboard) = op {
+                        if let Some(gvas) = &self.files.gvas {
+                            let keys = gvas
+                                .clone()
+                                .properties
+                                .keys()
+                                .cloned()
+                                .collect::<Vec<String>>()
+                                .join(",");
+
+                            if let Err(e) = clipboard.set_text(keys) {
+                                egui::Window::new("Alert")
+                                    .collapsible(false)
+                                    .resizable(false)
+                                    .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                                    .show(ui.ctx(), |ui| {
+                                        ui.label("Failed");
+                                    });
                             }
                         }
                     }
@@ -160,8 +186,6 @@ impl eframe::App for AppState {
                                 }
                             });
                         });
-                    } else {
-                        logger::info("Failed to create labels");
                     }
             });
 
